@@ -1,4 +1,7 @@
-import { server } from './server';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import { server } from './infrastructure/http/server';
 
 async function start(): Promise<void> {
   try {

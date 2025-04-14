@@ -22,6 +22,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.788.0",
+    "@aws-sdk/lib-dynamodb": "^3.788.0",
     "@fastify/aws-lambda": "^5.1.4",
     "@fastify/caching": "^9.0.3",
     "@fastify/cors": "^11.0.1",

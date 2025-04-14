@@ -1,4 +1,11 @@
 import fastify from 'fastify';
+
+// Import adapters and services
+import { StarWarsAPIService } from '../adapters/services/StarWarsAPIService';
+import { DynamoDBCharacterRepository } from '../adapters/repositories/dynamodb/DynamoDBCharacterRepository';
+import { CharacterService } from '../../application/services/CharacterService';
+import { CharacterController } from './controllers/CharacterController';
+import { characterRoutes } from './routes/characterRoutes';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -50,6 +57,17 @@ server.register(swaggerUi, {
   },
   staticCSP: true
 });
+
+// Initialize dependencies
+const starWarsAPI = new StarWarsAPIService();
+const characterRepository = new DynamoDBCharacterRepository();
+const characterService = new CharacterService(characterRepository, starWarsAPI);
+const characterController = new CharacterController(characterService);
+
+// Register routes
+server.register(async (fastify) => {
+  await characterRoutes(fastify, characterController);
+}, { prefix: '/api/v1' });
 
 // Health check route
 server.get('/health', {

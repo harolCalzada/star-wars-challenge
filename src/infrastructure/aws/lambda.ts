@@ -1,7 +1,7 @@
 
 import awsLambdaFastify from '@fastify/aws-lambda';
 import { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import { server } from './server';
+import { server } from '../http/server';
 
 let proxy: (event: APIGatewayProxyEvent, context: Context) => Promise<any>;
 

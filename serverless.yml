@@ -1,5 +1,10 @@
 service: star-wars-challenge
 
+useDotenv: true
+
+custom:
+  tableName: ${self:service}-${self:provider.stage}-characters
+
 frameworkVersion: '3'
 
 provider:
@@ -39,11 +44,25 @@ package:
 
 functions:
   api:
-    handler: dist/lambda.handler
+    handler: dist/infrastructure/aws/lambda.handler
     events:
       - httpApi:
           path: /api/v1/{proxy+}
           method: ANY
+
+resources:
+  Resources:
+    CharactersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
     environment:
       CACHE_TTL: 1800 # 30 minutes in seconds
 
