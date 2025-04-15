@@ -15,9 +15,14 @@ export class CharacterController {
     }
   }
 
-  async getFirstPageCharacters(request: FastifyRequest, reply: FastifyReply) {
+  async getCharactersByPage(request: FastifyRequest<{ Querystring: { page?: string } }>, reply: FastifyReply) {
     try {
-      const characters = await this.characterService.getFirstPageCharacters();
+      const page = parseInt(request.query.page || '1', 10);
+      if (isNaN(page) || page < 1) {
+        return reply.badRequest('Page number must be a positive integer');
+      }
+
+      const characters = await this.characterService.getCharactersByPage(page);
       return reply.send(characters.map(CharacterMapper.toListItemDTO));
     } catch (error) {
       request.log.error(error);

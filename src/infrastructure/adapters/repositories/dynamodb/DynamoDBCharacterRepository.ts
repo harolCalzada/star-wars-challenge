@@ -19,7 +19,7 @@ export class DynamoDBCharacterRepository implements ICharacterRepository {
     const result = await dynamoDb.send(
       new QueryCommand({
         TableName: TABLE_NAME,
-        KeyConditionExpression: 'id > :empty',
+        KeyConditionExpression: 'id >= :minId',
         ExpressionAttributeValues: {
           ':empty': ''
         }

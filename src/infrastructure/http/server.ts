@@ -3,6 +3,7 @@ import fastify from 'fastify';
 // Import adapters and services
 import { StarWarsAPIService } from '../adapters/services/StarWarsAPIService';
 import { DynamoDBCharacterRepository } from '../adapters/repositories/dynamodb/DynamoDBCharacterRepository';
+import { RedisCharacterCache } from '../adapters/cache/RedisCharacterCache';
 import { CharacterService } from '../../application/services/CharacterService';
 import { CharacterController } from './controllers/CharacterController';
 import { characterRoutes } from './routes/characterRoutes';
@@ -61,7 +62,8 @@ server.register(swaggerUi, {
 // Initialize dependencies
 const starWarsAPI = new StarWarsAPIService();
 const characterRepository = new DynamoDBCharacterRepository();
-const characterService = new CharacterService(characterRepository, starWarsAPI);
+const characterCache = new RedisCharacterCache();
+const characterService = new CharacterService(characterRepository, starWarsAPI, characterCache);
 const characterController = new CharacterController(characterService);
 
 // Register routes

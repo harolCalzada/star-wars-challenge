@@ -25,10 +25,13 @@ export class StarWarsAPIService implements IStarWarsAPI {
     return matches ? matches[1] : '';
   }
 
-  private async transformResponse(data: any): Promise<Character> {
-    console.log('Films from SWAPI:', data.films);
-    const movieDetails = await this.tmdbService.getMoviesDetails(data.films);
-    console.log('Movie details from TMDB:', movieDetails);
+  private async transformResponse(data: any, includeMovieDetails: boolean = false): Promise<Character> {
+    let movieDetails: any[] = [];
+    if (includeMovieDetails) {
+      console.log('Films from SWAPI:', data.films);
+      movieDetails = await this.tmdbService.getMoviesDetails(data.films);
+      console.log('Movie details from TMDB:', movieDetails);
+    }
     
     return {
       id: this.extractIdFromUrl(data.url),
@@ -57,7 +60,7 @@ export class StarWarsAPIService implements IStarWarsAPI {
       console.log(`Fetching character ${id}`);
       const response = await axiosInstance.get(`${this.baseUrl}/people/${id}/`);
       console.log('SWAPI response:', response.data);
-      return await this.transformResponse(response.data);
+      return await this.transformResponse(response.data, true);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new Error(`Character with id ${id} not found`);
@@ -66,12 +69,12 @@ export class StarWarsAPIService implements IStarWarsAPI {
     }
   }
 
-  async getFirstPageCharacters(): Promise<Character[]> {
+  async getCharactersByPage(page: number): Promise<Character[]> {
     try {
-      const response = await axiosInstance.get(`${this.baseUrl}/people/`);
+      const response = await axiosInstance.get(`${this.baseUrl}/people/?page=${page}`);
       console.log('Characters:', response.data);
       const characters = await Promise.all(
-        response.data.results.map((character: any) => this.transformResponse(character))
+        response.data.results.map((character: any) => this.transformResponse(character, false))
       );
       return characters;
     } catch (error) {
