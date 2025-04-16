@@ -8,6 +8,9 @@ export class CharacterController {
   async getCharacter(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     try {
       const character = await this.characterService.getCharacter(request.params.id);
+      if (!character) {
+        return reply.code(404).send({ error: 'Character not found' });
+      }
       return reply.send(CharacterMapper.toDetailDTO(character));
     } catch (error) {
       request.log.error(error);
