@@ -74,6 +74,8 @@ const genericRepository = new DynamoDBGenericRepository();
 const genericDataService = new GenericDataService(genericRepository);
 const genericDataController = new GenericDataController(genericDataService);
 
+
+
 // Register routes
 server.register(async (fastify) => {
   await characterRoutes(fastify, characterController);

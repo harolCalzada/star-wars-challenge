@@ -3,6 +3,7 @@ import { GenericDataController } from '../controllers/GenericDataController';
 import { SaveDataRequest, GetDataResponse, GetDataListResponse } from '../schemas/GenericDataSchema';
 
 export async function genericDataRoutes(fastify: FastifyInstance, controller: GenericDataController) {
+
   fastify.post<{
     Body: { type: string; data: Record<string, any> };
     Reply: any;
@@ -53,5 +54,15 @@ export async function genericDataRoutes(fastify: FastifyInstance, controller: Ge
       }
     },
     handler: (request, reply) => controller.getAllData(request, reply)
+  });
+
+  fastify.get('/history', {
+    schema: {
+      response: {
+        200: GetDataListResponse
+      },
+      description: 'Get history of all external API calls'
+    },
+    handler: (request, reply) => controller.getExternalApiHistory(request, reply)
   });
 }

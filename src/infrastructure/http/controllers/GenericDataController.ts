@@ -36,4 +36,14 @@ export class GenericDataController {
       return reply.internalServerError('Error fetching data');
     }
   }
+
+  async getExternalApiHistory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const history = await this.dataService.getExternalApiHistory();
+      return reply.send(history);
+    } catch (error) {
+      request.log.error(error);
+      return reply.internalServerError('Error fetching history');
+    }
+  }
 }
