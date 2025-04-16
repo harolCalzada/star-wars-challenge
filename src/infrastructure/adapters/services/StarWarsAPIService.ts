@@ -3,6 +3,7 @@ import https from 'https';
 import { Character } from '../../../domain/entities/Character';
 import { IStarWarsAPI } from '../../../domain/ports/services/IStarWarsAPI';
 import { TMDBService } from './TMDBService';
+import { CacheService } from '../cache/CacheService';
 
 // Create an axios instance with custom configuration to handle self-signed certificates
 const axiosInstance = axios.create({
@@ -14,6 +15,7 @@ const axiosInstance = axios.create({
 export class StarWarsAPIService implements IStarWarsAPI {
   private readonly tmdbService: TMDBService;
   private readonly baseUrl: string;
+  private readonly cache = CacheService.getInstance('swapi');
 
   constructor() {
     this.baseUrl = 'http://swapi.dev/api';
@@ -57,10 +59,22 @@ export class StarWarsAPIService implements IStarWarsAPI {
 
   async getCharacter(id: string): Promise<Character> {
     try {
-      console.log(`Fetching character ${id}`);
+      // Intentar obtener del caché primero
+      const cacheKey = `character:${id}`;
+      const cachedCharacter = await this.cache.get<Character>(cacheKey);
+      if (cachedCharacter) {
+        console.log(`Character ${id} found in cache`);
+        return cachedCharacter;
+      }
+
+      console.log(`Fetching character ${id} from SWAPI`);
       const response = await axiosInstance.get(`${this.baseUrl}/people/${id}/`);
       console.log('SWAPI response:', response.data);
-      return await this.transformResponse(response.data, true);
+      const character = await this.transformResponse(response.data, true);
+
+      // Guardar en caché
+      await this.cache.set(cacheKey, character);
+      return character;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new Error(`Character with id ${id} not found`);

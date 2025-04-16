@@ -4,71 +4,79 @@ import { ICharacterRepository } from '../../../../domain/ports/repositories/ICha
 import { dynamoDb, TABLE_NAME } from './config/dynamodb';
 
 export class DynamoDBCharacterRepository implements ICharacterRepository {
-  async findById(id: string): Promise<Character | null> {
+  async findById(id: string, type: string = 'character'): Promise<Character | null> {
     const result = await dynamoDb.send(
       new GetCommand({
         TableName: TABLE_NAME,
-        Key: { id }
+        Key: { id, type: 'character' }
       })
     );
 
-    return result.Item as Character || null;
+    return result.Item?.data as Character || null;
   }
 
   async findAll(): Promise<Character[]> {
     const result = await dynamoDb.send(
       new QueryCommand({
         TableName: TABLE_NAME,
-        KeyConditionExpression: 'id >= :minId',
+        KeyConditionExpression: '#type = :type',
+        ExpressionAttributeNames: {
+          '#type': 'type'
+        },
         ExpressionAttributeValues: {
-          ':empty': ''
+          ':type': 'character'
         }
       })
     );
 
-    return (result.Items || []) as Character[];
+    return (result.Items || []).map(item => item.data as Character);
   }
 
-  async save(character: Character): Promise<void> {
+  async save(character: Character): Promise<Character> {
+    const timestamp = new Date().toISOString();
+    const item = {
+      id: character.id,
+      type: 'character',
+      data: character,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+
     await dynamoDb.send(
       new PutCommand({
         TableName: TABLE_NAME,
-        Item: character
+        Item: item
       })
     );
+
+    return character;
   }
 
-  async update(id: string, character: Partial<Character>): Promise<void> {
-    const updateExpression = Object.keys(character)
-      .map(key => `#${key} = :${key}`)
-      .join(', ');
-
-    const expressionAttributeNames = Object.keys(character).reduce(
-      (acc, key) => ({ ...acc, [`#${key}`]: key }),
-      {}
-    );
-
-    const expressionAttributeValues = Object.entries(character).reduce(
-      (acc, [key, value]) => ({ ...acc, [`:${key}`]: value }),
-      {}
-    );
-
+  async update(character: Character): Promise<Character> {
+    const timestamp = new Date().toISOString();
     await dynamoDb.send(
       new UpdateCommand({
         TableName: TABLE_NAME,
-        Key: { id },
-        UpdateExpression: `SET ${updateExpression}`,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues
+        Key: { id: character.id, type: 'character' },
+        UpdateExpression: 'set #data = :data, updatedAt = :updatedAt',
+        ExpressionAttributeNames: {
+          '#data': 'data'
+        },
+        ExpressionAttributeValues: {
+          ':data': character,
+          ':updatedAt': timestamp
+        }
       })
     );
+
+    return character;
   }
 
   async delete(id: string): Promise<void> {
     await dynamoDb.send(
       new DeleteCommand({
         TableName: TABLE_NAME,
-        Key: { id }
+        Key: { id, type: 'character' }
       })
     );
   }

@@ -3,10 +3,14 @@ import fastify from 'fastify';
 // Import adapters and services
 import { StarWarsAPIService } from '../adapters/services/StarWarsAPIService';
 import { DynamoDBCharacterRepository } from '../adapters/repositories/dynamodb/DynamoDBCharacterRepository';
-import { RedisCharacterCache } from '../adapters/cache/RedisCharacterCache';
+import { DynamoDBGenericRepository } from '../adapters/repositories/dynamodb/DynamoDBGenericRepository';
+
 import { CharacterService } from '../../application/services/CharacterService';
+import { GenericDataService } from '../../application/services/GenericDataService';
 import { CharacterController } from './controllers/CharacterController';
+import { GenericDataController } from './controllers/GenericDataController';
 import { characterRoutes } from './routes/characterRoutes';
+import { genericDataRoutes } from './routes/genericDataRoutes';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -62,13 +66,18 @@ server.register(swaggerUi, {
 // Initialize dependencies
 const starWarsAPI = new StarWarsAPIService();
 const characterRepository = new DynamoDBCharacterRepository();
-const characterCache = new RedisCharacterCache();
-const characterService = new CharacterService(characterRepository, starWarsAPI, characterCache);
+const characterService = new CharacterService(characterRepository, starWarsAPI);
 const characterController = new CharacterController(characterService);
+
+// Generic data handling
+const genericRepository = new DynamoDBGenericRepository();
+const genericDataService = new GenericDataService(genericRepository);
+const genericDataController = new GenericDataController(genericDataService);
 
 // Register routes
 server.register(async (fastify) => {
   await characterRoutes(fastify, characterController);
+  await genericDataRoutes(fastify, genericDataController);
 }, { prefix: '/api/v1' });
 
 // Health check route

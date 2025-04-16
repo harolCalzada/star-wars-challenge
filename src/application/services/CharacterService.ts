@@ -1,29 +1,32 @@
 import { Character } from '../../domain/entities/Character';
 import { ICharacterRepository } from '../../domain/ports/repositories/ICharacterRepository';
 import { IStarWarsAPI } from '../../domain/ports/services/IStarWarsAPI';
-import { ICharacterCache } from '../../domain/ports/cache/ICharacterCache';
+import { CacheService } from '../../infrastructure/adapters/cache/CacheService';
 
 export class CharacterService {
   private readonly CACHE_TTL = 1800; // 30 minutes in seconds
 
   constructor(
     private readonly characterRepository: ICharacterRepository,
-    private readonly starWarsAPI: IStarWarsAPI,
-    private readonly characterCache: ICharacterCache
-  ) {}
+    private readonly starWarsAPI: IStarWarsAPI
+  ) {
+    this.cache = CacheService.getInstance('character');
+  }
+
+  private readonly cache: CacheService;
 
   async getCharacter(id: string): Promise<Character> {
     // First try to get from cache
-    const cachedCharacter = await this.characterCache.get(id);
+    const cachedCharacter = await this.cache.get<Character>(`character:${id}`);
     if (cachedCharacter) {
       return cachedCharacter;
     }
 
     // Then try to get from repository
-    const character = await this.characterRepository.findById(id);
+    const character = await this.characterRepository.findById(id, 'character');
     if (character) {
       // Store in cache and return
-      await this.characterCache.set(id, character, this.CACHE_TTL);
+      await this.cache.set(`character:${id}`, character);
       return character;
     }
 
@@ -32,7 +35,7 @@ export class CharacterService {
     
     // Save to both cache and repository
     await Promise.all([
-      this.characterCache.set(id, fetchedCharacter, this.CACHE_TTL),
+      this.cache.set(`character:${id}`, fetchedCharacter),
       this.characterRepository.save(fetchedCharacter)
     ]);
 
@@ -41,7 +44,7 @@ export class CharacterService {
 
   async getCharactersByPage(page: number): Promise<Character[]> {
     // First try to get from cache
-    const cachedCharacters = await this.characterCache.getList(page);
+    const cachedCharacters = await this.cache.get<Character[]>(`characters:page:${page}`);
     if (cachedCharacters) {
       return cachedCharacters;
     }
@@ -49,8 +52,8 @@ export class CharacterService {
     // If not in cache, fetch from API
     const characters = await this.starWarsAPI.getCharactersByPage(page);
     
-    // Store in cache
-    await this.characterCache.setList(page, characters, this.CACHE_TTL);
+    // Save to cache
+    await this.cache.set(`characters:page:${page}`, characters);
     
     return characters;
   }

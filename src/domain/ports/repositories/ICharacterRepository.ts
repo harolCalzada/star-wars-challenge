@@ -1,9 +1,9 @@
 import { Character } from '../../entities/Character';
 
 export interface ICharacterRepository {
-  findById(id: string): Promise<Character | null>;
+  findById(id: string, type?: string): Promise<Character | null>;
   findAll(): Promise<Character[]>;
-  save(character: Character): Promise<void>;
-  update(id: string, character: Partial<Character>): Promise<void>;
+  save(character: Character): Promise<Character>;
+  update(character: Character): Promise<Character>;
   delete(id: string): Promise<void>;
 }
