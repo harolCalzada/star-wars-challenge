@@ -1,23 +1,35 @@
-service: star-wars-challenge
-
+service: star-wars-challenge-v1
 useDotenv: true
+
+plugins:
+  - serverless-esbuild
 
 custom:
   tableName: ${self:service}-${self:provider.stage}-characters
   esbuild:
     bundle: true
     minify: true
+    sourcemap: true
+    exclude: ["aws-sdk", "swagger-ui-dist"]
+    target: "node20"
+    platform: "node"
+    concurrency: 10
 
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
   runtime: nodejs20.x
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
+  timeout: 30
+  memorySize: 256
+
   environment:
     NODE_ENV: ${self:provider.stage}
     CACHE_TTL: 1800 # 30 minutes in seconds
+    REDIS_URL: ${env:REDIS_URL}
+    TMDB_API_KEY: ${env:TMDB_API_KEY}
   iam:
     role:
       statements:
@@ -32,30 +44,39 @@ provider:
           Resource: !GetAtt CharactersTable.Arn
 
 package:
+  individually: true
   patterns:
-    - '!node_modules/serverless-dynamodb-local/**'
-    - '!node_modules/aws-sdk/**'
-    - '!test/**'
-    - '!.git/**'
-    - '!.vscode/**'
-    - '!.serverless/**'
-    - '!*.test.ts'
-    - '!jest.config.js'
-    - '!tsconfig.json'
-    - '!README.md'
-    - '!.eslintrc.js'
-    - '!.prettierrc'
+    - "!.git/**"
+    - "!node_modules/**"
+    - "!test/**"
+    - "!coverage/**"
+    - "!.env*"
+    - "!tsconfig.json"
+    - "!jest.config.js"
+    - "!README.md"
+    - "src/infrastructure/aws/static/**"
+    - "node_modules/swagger-ui-dist/*"
 
 functions:
   api:
-    handler: dist/infrastructure/aws/lambda.handler
+    handler: src/infrastructure/aws/lambda.handler
+    timeout: 60
+    memorySize: 512
+
     events:
       - httpApi:
           path: /api/v1/{proxy+}
           method: ANY
+      - httpApi:
+          path: /documentation
+          method: ANY
+      - httpApi:
+          path: /documentation/{proxy+}
+          method: ANY
 
 resources:
   Resources:
+    # DynamoDB Table
     CharactersTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -78,6 +99,3 @@ resources:
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
-
-plugins:
-  - serverless-offline

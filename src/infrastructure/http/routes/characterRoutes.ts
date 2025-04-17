@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { Type } from '@sinclair/typebox';
 import { CharacterController } from '../controllers/CharacterController';
 import { GetCharacterParams, GetCharacterResponse, GetCharactersResponse } from '../schemas/CharacterSchema';
 
@@ -30,23 +31,38 @@ export async function characterRoutes(fastify: FastifyInstance, controller: Char
   fastify.get('/characters/', listHandler);
 
   fastify.get<{
-    Params: typeof GetCharacterParams['static'];
-    Reply: typeof GetCharacterResponse['static'];
+    Params: { id: string };
+    Reply: typeof GetCharacterResponse['static'] | { error: string; message: string };
   }>('/characters/:id', {
     schema: {
       params: GetCharacterParams,
       response: {
-        200: GetCharacterResponse
+        200: GetCharacterResponse,
+        404: Type.Object({
+          error: Type.String()
+        }),
+        500: Type.Object({
+          error: Type.String(),
+          message: Type.String()
+        })
       }
     },
     handler: async (request, reply) => {
-      const { id } = request.params as { id: string };
+      const { id } = request.params;
 
       if (!id || id === '/') {
         return reply.redirect('/api/v1/characters');
       }
       
-      return controller.getCharacter(request, reply);
+      try {
+        return await controller.getCharacter(request, reply);
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ 
+          error: 'Internal Server Error', 
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     }
   });
 }

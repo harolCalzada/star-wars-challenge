@@ -39,48 +39,126 @@ server.register(rateLimit, {
 server.register(caching);
 server.register(sensible);
 
+// Log route registration
+server.addHook('onRoute', (routeOptions) => {
+  console.log(`Route registered: ${routeOptions.url} [${routeOptions.method}]`);
+});
+
 // Swagger documentation
 server.register(swagger, {
   swagger: {
     info: {
       title: 'Star Wars API Challenge',
-      description: 'Star Wars API integration with Jokes API',
+      description: 'Star Wars API integration with TMDB API',
       version: '1.0.0',
     },
-    schemes: ['http', 'https'],
+    host: 'localhost:3000',
+    schemes: ['http'],
     consumes: ['application/json'],
     produces: ['application/json'],
-    basePath: '/api/v1'
-  },
+    tags: [
+      { name: 'characters', description: 'Star Wars Characters' },
+      { name: 'data', description: 'Generic Data Operations' }
+    ]
+  }
 });
 
-server.register(swaggerUi, {
-  routePrefix: '/api/v1/documentation',
-  uiConfig: {
-    docExpansion: 'full',
-    deepLinking: false
-  },
-  staticCSP: true
+// Configurar rutas de documentación
+const setupDocumentation = async () => {
+  // Servir archivos estáticos en Lambda
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const fs = await import('fs');
+
+    // Servir archivos estáticos con cache-control
+    const serveStaticFile = async (request: any, reply: any, filename: string, contentType: string) => {
+      try {
+        const filePath = `/var/task/node_modules/swagger-ui-dist/${filename}`;
+        console.log(`Trying to read file from: ${filePath}`);
+        const content = await fs.promises.readFile(filePath, 'utf8');
+        reply
+          .header('Cache-Control', 'public, max-age=31536000')
+          .type(contentType)
+          .send(content);
+      } catch (error) {
+        console.error(`Error serving static file ${filename}:`, error);
+        reply.status(404).send();
+      }
+    };
+
+    // Registrar rutas estáticas primero
+    server.get('/documentation/static/swagger-ui.css', async (request, reply) => {
+      await serveStaticFile(request, reply, 'swagger-ui.css', 'text/css');
+    });
+
+    server.get('/documentation/static/swagger-ui-bundle.js', async (request, reply) => {
+      await serveStaticFile(request, reply, 'swagger-ui-bundle.js', 'application/javascript');
+    });
+
+    server.get('/documentation/static/swagger-ui-standalone-preset.js', async (request, reply) => {
+      await serveStaticFile(request, reply, 'swagger-ui-standalone-preset.js', 'application/javascript');
+    });
+  }
+
+  // Configurar Swagger UI después
+  await server.register(swaggerUi, {
+    routePrefix: '/documentation',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false,
+      tryItOutEnabled: false,
+      displayRequestDuration: false,
+      filter: false,
+      syntaxHighlight: {
+        activate: false
+      }
+    },
+    staticCSP: true,
+    transformStaticCSP: (header) => header
+  });
+};
+
+// Inicializar documentación
+void setupDocumentation().catch(error => {
+  console.error('Error setting up documentation:', error);
 });
 
-// Initialize dependencies
+// Initialize services and controllers
 const starWarsAPI = new StarWarsAPIService();
 const characterRepository = new DynamoDBCharacterRepository();
-const characterService = new CharacterService(characterRepository, starWarsAPI);
-const characterController = new CharacterController(characterService);
-
-// Generic data handling
 const genericRepository = new DynamoDBGenericRepository();
+
+const characterService = new CharacterService(characterRepository, starWarsAPI);
 const genericDataService = new GenericDataService(genericRepository);
+
+const characterController = new CharacterController(characterService);
 const genericDataController = new GenericDataController(genericDataService);
 
-
-
 // Register routes
-server.register(async (fastify) => {
-  await characterRoutes(fastify, characterController);
-  await genericDataRoutes(fastify, genericDataController);
-}, { prefix: '/api/v1' });
+const registerRoutes = async () => {
+  try {
+    console.log('Registering routes...');
+    
+    // Register all routes under /api/v1 prefix
+    await server.register(async (fastify) => {
+      // Register character routes
+      console.log('Registering character routes...');
+      await characterRoutes(fastify, characterController);
+      console.log('Character routes registered successfully');
+
+      // Register generic data routes
+      console.log('Registering generic data routes...');
+      await genericDataRoutes(fastify, genericDataController);
+      console.log('Generic data routes registered successfully');
+    }, { prefix: '/api/v1' });
+
+  } catch (error) {
+    console.error('Error registering routes:', error);
+    throw error;
+  }
+};
+
+// Initialize routes
+void registerRoutes();
 
 // Health check route
 server.get('/health', {

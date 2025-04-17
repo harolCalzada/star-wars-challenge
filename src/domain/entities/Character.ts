@@ -12,11 +12,11 @@ export interface Character {
   gender: string;
   homeworld: string;
   films: string[];
-  movieDetails?: MovieDetails[];
   species: string[];
   vehicles: string[];
   starships: string[];
   created: string;
   edited: string;
   url: string;
+  movieDetails?: MovieDetails[];
 }

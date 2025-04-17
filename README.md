@@ -2,76 +2,119 @@
 
 ## Overview
 
-This project integrates the Star Wars API with another external API to provide enriched character data through a RESTful service.
+This project provides a RESTful API service that integrates the Star Wars API (SWAPI) with The Movie Database (TMDB) API to offer enhanced character information with movie details, caching, and storage capabilities.
 
-## Requirements
+## Features
 
-### API Integration
+- RESTful API design with Fastify
+- Integration with SWAPI and TMDB APIs
+- Redis caching with 30-minute expiration
+- DynamoDB storage integration
+- Comprehensive unit tests with Jest
+- TypeScript implementation
+- Rate limiting
+- CORS support
 
-- Fetch character data from the Star Wars API (SWAPI)
-- Integrate with an additional external API of choice
-- Combine data from both APIs into a unified response
+## API Endpoints
 
-### API Endpoints
+### Characters
 
-#### 1. Get Characters
+#### Get All Characters
 
 ```
-GET /api/v1/characters
+GET /characters
 ```
 
-- Returns combined data from both APIs
+- Returns a list of Star Wars characters
 - Includes caching with 30-minute expiration
 
-#### 2. Create Character
+#### Get Character by ID
 
 ```
-POST /api/v1/characters
+GET /character/{id}
 ```
 
-- Allows adding new character entries
+- Returns detailed information about a specific character
+- Enriched with movie details from TMDB API
+- Includes caching with 30-minute expiration
+- Parameters:
+  - `id`: Character ID (required)
 
-#### 3. View API History
+### Generic Data
+
+#### Get All Data by Type
 
 ```
-GET /api/v1/history
+GET /data
 ```
 
-- Tracks and displays all external API requests
+- Returns a list of available SWAPI resource types
 
-### Technical Features
+#### Get Data by Type and ID
 
-- RESTful API design
-- 30-minute data caching implementation
-- Request history logging
-- Deploy on AWS Lambda and API Gateway
-- Use DynamoDB or MySQL for storage
-- Use TypeScript
-- The project should be include unit tests
+```
+GET /data/{type}/{id}
+```
 
-### Solution
+- Returns data for any SWAPI resource type
+- Parameters:
+  - `type`: Resource type (e.g., 'films', 'planets', 'species', 'vehicles', 'starships')
+  - `id`: Resource ID
 
-The solution will be a RESTful API that integrates the Star Wars API with another external API to provide enriched character data.
+### History
 
-### External APIs
+#### Get API Request History
 
-The service will show you the character data from the Star Wars API and a random joke the character tells from the Jokes API.
+```
+GET /history
+```
+
+- Returns a log of API requests made to external services
+
+## External APIs
 
 - Star Wars API (SWAPI): https://swapi.dev/api/
-- Jokes API: https://sv443.net/jokeapi/v2/
+- The Movie Database (TMDB): https://api.themoviedb.org/
+  - Used to enrich character details with movie information
 
-### Infrastructure
-
-The service will be deployed on AWS Lambda and API Gateway using Serverless framework.
+## Infrastructure
 
 ### Storage
 
-The service will use DynamoDB for storage.
+- DynamoDB for persistent storage
+- Redis for caching
 
 ### Security
 
-The service will use API Gateway for security.
+- Rate limiting implemented
+- CORS configuration
+- API versioning
 
 ### Testing
 
-The service will be tested using Jest.
+Comprehensive unit tests implemented using Jest, covering:
+
+- Controllers
+- Services
+- Repository layer
+- Cache integration
+
+To run tests:
+
+```bash
+npm test
+```
+
+## API Documentation
+
+Swagger documentation is available at:
+
+### Local Development
+```
+http://localhost:3000/documentation
+```
+
+### AWS Lambda (Production)
+```
+https://mzee34bwr4.execute-api.us-east-1.amazonaws.com/documentation
+```

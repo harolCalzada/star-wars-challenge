@@ -27,12 +27,12 @@ export class TMDBService {
 
   private async initializeMovieMapping(): Promise<void> {
     const starWarsMovies = [
-      { swapiUrl: 'https://swapi.dev/api/films/1/', title: 'Star Wars', year: 1977 },  // Episode IV
-      { swapiUrl: 'https://swapi.dev/api/films/2/', title: 'The Empire Strikes Back', year: 1980 },  // Episode V
-      { swapiUrl: 'https://swapi.dev/api/films/3/', title: 'Return of the Jedi', year: 1983 },  // Episode VI
-      { swapiUrl: 'https://swapi.dev/api/films/4/', title: 'The Phantom Menace', year: 1999 },  // Episode I
-      { swapiUrl: 'https://swapi.dev/api/films/5/', title: 'Attack of the Clones', year: 2002 },  // Episode II
-      { swapiUrl: 'https://swapi.dev/api/films/6/', title: 'Revenge of the Sith', year: 2005 }  // Episode III
+      { swapiUrl: 'https://swapi.py4e.com/api/films/1/', title: 'Star Wars', year: 1977 },  // Episode IV
+      { swapiUrl: 'https://swapi.py4e.com/api/films/2/', title: 'The Empire Strikes Back', year: 1980 },  // Episode V
+      { swapiUrl: 'https://swapi.py4e.com/api/films/3/', title: 'Return of the Jedi', year: 1983 },  // Episode VI
+      { swapiUrl: 'https://swapi.py4e.com/api/films/4/', title: 'The Phantom Menace', year: 1999 },  // Episode I
+      { swapiUrl: 'https://swapi.py4e.com/api/films/5/', title: 'Attack of the Clones', year: 2002 },  // Episode II
+      { swapiUrl: 'https://swapi.py4e.com/api/films/6/', title: 'Revenge of the Sith', year: 2005 }  // Episode III
     ];
 
     try {

@@ -1,97 +1,120 @@
 import axios from 'axios';
-import https from 'https';
 import { Character } from '../../../domain/entities/Character';
 import { IStarWarsAPI } from '../../../domain/ports/services/IStarWarsAPI';
-import { TMDBService } from './TMDBService';
-import { CacheService } from '../cache/CacheService';
-
-// Create an axios instance with custom configuration to handle self-signed certificates
-const axiosInstance = axios.create({
-  httpsAgent: new https.Agent({  
-    rejectUnauthorized: false
-  })
-});
 
 export class StarWarsAPIService implements IStarWarsAPI {
-  private readonly tmdbService: TMDBService;
   private readonly baseUrl: string;
-  private readonly cache = CacheService.getInstance('swapi');
 
   constructor() {
-    this.baseUrl = 'http://swapi.dev/api';
-    this.tmdbService = new TMDBService();
+    this.baseUrl = 'https://swapi.py4e.com/api';
   }
 
   private extractIdFromUrl(url: string): string {
-    const matches = url.match(/\/people\/(\d+)/);
-    return matches ? matches[1] : '';
-  }
-
-  private async transformResponse(data: any, includeMovieDetails: boolean = false): Promise<Character> {
-    let movieDetails: any[] = [];
-    if (includeMovieDetails) {
-      console.log('Films from SWAPI:', data.films);
-      movieDetails = await this.tmdbService.getMoviesDetails(data.films);
-      console.log('Movie details from TMDB:', movieDetails);
+    try {
+      const matches = url.match(/\/([0-9]+)\/?$/);
+      if (!matches) {
+        console.warn(`Could not extract ID from URL: ${url}`);
+        return '';
+      }
+      return matches[1];
+    } catch (error) {
+      console.warn(`Error extracting ID from URL: ${url}`, error);
+      return '';
     }
-    
-    return {
-      id: this.extractIdFromUrl(data.url),
-      name: data.name,
-      height: data.height,
-      mass: data.mass,
-      hairColor: data.hair_color,
-      skinColor: data.skin_color,
-      eyeColor: data.eye_color,
-      birthYear: data.birth_year,
-      gender: data.gender,
-      homeworld: data.homeworld,
-      films: data.films,
-      movieDetails,
-      species: data.species,
-      vehicles: data.vehicles,
-      starships: data.starships,
-      created: data.created,
-      edited: data.edited,
-      url: data.url
-    };
   }
 
   async getCharacter(id: string): Promise<Character> {
     try {
-      // Intentar obtener del caché primero
-      const cacheKey = `character:${id}`;
-      const cachedCharacter = await this.cache.get<Character>(cacheKey);
-      if (cachedCharacter) {
-        console.log(`Character ${id} found in cache`);
-        return cachedCharacter;
+      console.log(`Fetching character ${id} from SWAPI`);
+      console.log('Base URL:', this.baseUrl);
+      console.log('Full URL:', `${this.baseUrl}/people/${id}/`);
+      const response = await axios.get(`${this.baseUrl}/people/${id}/`, {
+        timeout: 30000 // Aumentar a 30 segundos
+      });
+
+      if (!response.data) {
+        throw new Error('Invalid response format from Star Wars API');
       }
 
-      console.log(`Fetching character ${id} from SWAPI`);
-      const response = await axiosInstance.get(`${this.baseUrl}/people/${id}/`);
-      console.log('SWAPI response:', response.data);
-      const character = await this.transformResponse(response.data, true);
+      const character = response.data;
+      console.log('SWAPI response:', character);
 
-      // Guardar en caché
-      await this.cache.set(cacheKey, character);
-      return character;
+      return {
+        id,
+        name: character.name,
+        height: character.height,
+        mass: character.mass,
+        hairColor: character.hair_color,
+        skinColor: character.skin_color,
+        eyeColor: character.eye_color,
+        birthYear: character.birth_year,
+        gender: character.gender,
+        homeworld: character.homeworld,
+        films: character.films,
+        species: character.species,
+        vehicles: character.vehicles,
+        starships: character.starships,
+        created: character.created,
+        edited: character.edited,
+        url: character.url
+      };
     } catch (error) {
+      console.error('Error fetching character:', error);
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new Error(`Character with id ${id} not found`);
       }
-      throw error;
+      if (error instanceof Error) {
+        throw new Error(`Error fetching character: ${error.message}`);
+      }
+      throw new Error('Error fetching character');
     }
   }
 
   async getCharactersByPage(page: number): Promise<Character[]> {
     try {
-      const response = await axiosInstance.get(`${this.baseUrl}/people/?page=${page}`);
-      console.log('Characters:', response.data);
+      const response = await axios.get(`${this.baseUrl}/people/?page=${page}`, {
+        timeout: 30000 // Aumentar a 30 segundos
+      });
+      
+      if (!response.data || !Array.isArray(response.data.results)) {
+        throw new Error('Invalid response format from Star Wars API');
+      }
+
+      console.log('API Response:', {
+        count: response.data.count,
+        next: response.data.next,
+        previous: response.data.previous,
+        resultsCount: response.data.results.length
+      });
+
       const characters = await Promise.all(
-        response.data.results.map((character: any) => this.transformResponse(character, false))
+        response.data.results.map(async (character: any) => {
+          const id = this.extractIdFromUrl(character.url);
+          return {
+            id,
+            name: character.name,
+            height: character.height,
+            mass: character.mass,
+            hairColor: character.hair_color,
+            skinColor: character.skin_color,
+            eyeColor: character.eye_color,
+            birthYear: character.birth_year,
+            gender: character.gender,
+            homeworld: character.homeworld,
+            films: character.films,
+            species: character.species,
+            vehicles: character.vehicles,
+            starships: character.starships,
+            created: character.created,
+            edited: character.edited,
+            url: character.url
+          };
+        })
       );
+
       return characters;
     } catch (error) {
+      console.error('Error fetching characters:', error);
       if (error instanceof Error) {
         throw new Error(`Error fetching characters: ${error.message}`);
       }

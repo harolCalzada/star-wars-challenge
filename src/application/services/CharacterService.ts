@@ -2,8 +2,11 @@ import { Character } from '../../domain/entities/Character';
 import { ICharacterRepository } from '../../domain/ports/repositories/ICharacterRepository';
 import { IStarWarsAPI } from '../../domain/ports/services/IStarWarsAPI';
 import { CacheService } from '../../infrastructure/adapters/cache/CacheService';
+import { TMDBService } from '../../infrastructure/adapters/services/TMDBService';
 
 export class CharacterService {
+  private readonly cache: CacheService;
+  private readonly tmdbService: TMDBService;
   private readonly CACHE_TTL = 1800; // 30 minutes in seconds
 
   constructor(
@@ -11,50 +14,95 @@ export class CharacterService {
     private readonly starWarsAPI: IStarWarsAPI
   ) {
     this.cache = CacheService.getInstance('character');
+    this.tmdbService = new TMDBService();
   }
 
-  private readonly cache: CacheService;
-
   async getCharacter(id: string): Promise<Character> {
-    // First try to get from cache
-    const cachedCharacter = await this.cache.get<Character>(`character:${id}`);
-    if (cachedCharacter) {
-      return cachedCharacter;
+    try {
+      const cacheKey = `character:${id}`;
+      
+      // Try to get from cache first
+      try {
+        const cachedData = await this.cache.get<Character>(cacheKey);
+        if (cachedData && typeof cachedData === 'object' && 'id' in cachedData) {
+          console.log(`Character ${id} found in cache`);
+          return cachedData;
+        }
+      } catch (cacheError) {
+        console.warn('Cache error, continuing with API request:', cacheError);
+      }
+
+      // Fetch from Star Wars API
+      const character = await this.starWarsAPI.getCharacter(id);
+
+      // Get movie details
+      const movieDetails = await this.tmdbService.getMoviesDetails(character.films);
+      const characterWithMovies = {
+        ...character,
+        movieDetails
+      };
+
+      // Try to save to cache
+      if (characterWithMovies && typeof characterWithMovies === 'object' && 'id' in characterWithMovies) {
+        try {
+          await this.cache.set(cacheKey, characterWithMovies);
+          console.log(`Character ${id} saved to cache`);
+        } catch (cacheError) {
+          console.warn('Failed to save to cache:', cacheError);
+        }
+      }
+
+      return characterWithMovies;
+    } catch (error) {
+      console.error('Error fetching character:', error);
+      throw error;
     }
+  }
 
-    // Then try to get from repository
-    const character = await this.characterRepository.findById(id, 'character');
-    if (character) {
-      // Store in cache and return
-      await this.cache.set(`character:${id}`, character);
-      return character;
+  async clearCache(): Promise<void> {
+    try {
+      // Limpiar caché de personajes individuales
+      await this.cache.deletePattern('character:');
+      // Limpiar caché de páginas de personajes
+      await this.cache.deletePattern('characters:page:');
+    } catch (error) {
+      console.error('Error clearing cache:', error);
     }
-
-    // If not found anywhere, fetch from Star Wars API
-    const fetchedCharacter = await this.starWarsAPI.getCharacter(id);
-    
-    // Save to both cache and repository
-    await Promise.all([
-      this.cache.set(`character:${id}`, fetchedCharacter),
-      this.characterRepository.save(fetchedCharacter)
-    ]);
-
-    return fetchedCharacter;
   }
 
   async getCharactersByPage(page: number): Promise<Character[]> {
-    // First try to get from cache
-    const cachedCharacters = await this.cache.get<Character[]>(`characters:page:${page}`);
-    if (cachedCharacters) {
-      return cachedCharacters;
-    }
+    try {
+      const cacheKey = `characters:page:${page}`;
+      let characters: Character[] = [];
 
-    // If not in cache, fetch from API
-    const characters = await this.starWarsAPI.getCharactersByPage(page);
-    
-    // Save to cache
-    await this.cache.set(`characters:page:${page}`, characters);
-    
-    return characters;
+      // Try to get from cache first
+      try {
+        const cachedData = await this.cache.get<Character[]>(cacheKey);
+        if (Array.isArray(cachedData)) {
+          console.log(`Characters page ${page} found in cache`);
+          return cachedData;
+        }
+      } catch (cacheError) {
+        console.warn('Cache error, continuing with API request:', cacheError);
+      }
+
+      // Fetch from Star Wars API
+      characters = await this.starWarsAPI.getCharactersByPage(page);
+
+      // Try to save to cache
+      if (Array.isArray(characters) && characters.length > 0) {
+        try {
+          await this.cache.set(cacheKey, characters);
+          console.log(`Saved ${characters.length} characters to cache`);
+        } catch (cacheError) {
+          console.warn('Failed to save to cache:', cacheError);
+        }
+      }
+
+      return characters;
+    } catch (error) {
+      console.error('Error fetching characters:', error);
+      throw error;
+    }
   }
 }
