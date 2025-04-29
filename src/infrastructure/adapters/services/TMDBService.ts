@@ -12,6 +12,15 @@ export interface MovieDetails {
 }
 
 export class TMDBService {
+  private static instance: TMDBService;
+
+  public static getInstance(): TMDBService {
+    if (!TMDBService.instance) {
+      TMDBService.instance = new TMDBService();
+    }
+    return TMDBService.instance;
+  }
+
   private readonly baseUrl = 'https://api.themoviedb.org/3';
   private readonly apiKey = environment.tmdb.apiKey;
   private movieMapping: { [key: string]: number } = {};
@@ -20,7 +29,7 @@ export class TMDBService {
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
 
-  constructor() {
+  private constructor() {
     // Iniciar el proceso de inicialización inmediatamente
     this.initializationPromise = this.initializeMovieMapping();
   }

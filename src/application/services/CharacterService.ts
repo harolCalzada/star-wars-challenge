@@ -14,7 +14,7 @@ export class CharacterService {
     private readonly starWarsAPI: IStarWarsAPI
   ) {
     this.cache = CacheService.getInstance('character');
-    this.tmdbService = new TMDBService();
+    this.tmdbService = TMDBService.getInstance();
   }
 
   async getCharacter(id: string): Promise<Character> {
@@ -32,7 +32,28 @@ export class CharacterService {
         console.warn('Cache error, continuing with API request:', cacheError);
       }
 
-      // Fetch from Star Wars API
+      // Try to get from repository
+      const repoCharacter = await this.characterRepository.findById(id, 'character');
+      if (repoCharacter) {
+        // Get movie details for repository character
+        const movieDetails = await this.tmdbService.getMoviesDetails(repoCharacter.films);
+        const characterWithMovies = {
+          ...repoCharacter,
+          movieDetails
+        };
+
+        // Save to cache
+        try {
+          await this.cache.set(cacheKey, characterWithMovies);
+          console.log(`Character ${id} saved to cache`);
+        } catch (cacheError) {
+          console.warn('Failed to save to cache:', cacheError);
+        }
+
+        return characterWithMovies;
+      }
+
+      // Fetch from Star Wars API if not in repository
       const character = await this.starWarsAPI.getCharacter(id);
 
       // Get movie details
@@ -42,8 +63,9 @@ export class CharacterService {
         movieDetails
       };
 
-      // Try to save to cache
+      // Save to repository and cache
       if (characterWithMovies && typeof characterWithMovies === 'object' && 'id' in characterWithMovies) {
+        await this.characterRepository.save(characterWithMovies);
         try {
           await this.cache.set(cacheKey, characterWithMovies);
           console.log(`Character ${id} saved to cache`);
