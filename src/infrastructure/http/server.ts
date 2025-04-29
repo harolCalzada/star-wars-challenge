@@ -52,8 +52,8 @@ server.register(swagger, {
       description: 'Star Wars API integration with TMDB API',
       version: '1.0.0',
     },
-    host: 'localhost:3000',
-    schemes: ['http'],
+    host: process.env.API_HOST || 'localhost:3000',
+    schemes: process.env.NODE_ENV === 'production' ? ['https'] : ['http'],
     consumes: ['application/json'],
     produces: ['application/json'],
     tags: [
@@ -63,13 +63,12 @@ server.register(swagger, {
   }
 });
 
-// Configurar rutas de documentación
+// Setup documentation
 const setupDocumentation = async () => {
-  // Servir archivos estáticos en Lambda
   if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
     const fs = await import('fs');
 
-    // Servir archivos estáticos con cache-control
+    // Serve static files
     const serveStaticFile = async (request: any, reply: any, filename: string, contentType: string) => {
       try {
         const filePath = `/var/task/node_modules/swagger-ui-dist/${filename}`;
@@ -85,7 +84,7 @@ const setupDocumentation = async () => {
       }
     };
 
-    // Registrar rutas estáticas primero
+    // Serve static files
     server.get('/documentation/static/swagger-ui.css', async (request, reply) => {
       await serveStaticFile(request, reply, 'swagger-ui.css', 'text/css');
     });
@@ -99,25 +98,23 @@ const setupDocumentation = async () => {
     });
   }
 
-  // Configurar Swagger UI después
+  // Register Swagger UI
   await server.register(swaggerUi, {
     routePrefix: '/documentation',
     uiConfig: {
       docExpansion: 'list',
       deepLinking: false,
-      tryItOutEnabled: false,
-      displayRequestDuration: false,
-      filter: false,
-      syntaxHighlight: {
-        activate: false
-      }
+      tryItOutEnabled: true,
+      displayRequestDuration: true,
+      filter: true
     },
-    staticCSP: true,
-    transformStaticCSP: (header) => header
+    staticCSP: false
   });
+
+
 };
 
-// Inicializar documentación
+// Initialize documentation
 void setupDocumentation().catch(error => {
   console.error('Error setting up documentation:', error);
 });
